@@ -28,7 +28,7 @@ ansible-playbook awx/setup_awx.yml
 Launch the job template and paste JSON in the survey, or run locally:
 ```
 ansible-playbook playbooks/task-master-orchestrator.yml \
-  -e "deploy_dataset={{ lookup('file', 'examples/sample_deploy_dataset.json') | from_json }}"
+  -e "deploy_dataset={{ lookup('file', '../examples/sample_deploy_dataset.json') | from_json }}"
 ```
 
 Env vars (injected by AWX creds): SYNERGY_API_KEY, SOPHOS_PUBLIC_IP, UNIFI_CONTROLLER_URL, UNIFI_USERNAME, UNIFI_PASSWORD, UNIFI_SITE, SOPHOS_API_URL, SOPHOS_USERNAME, SOPHOS_PASSWORD.
@@ -41,7 +41,7 @@ ansible-playbook --syntax-check playbooks/task-master-orchestrator.yml
 - Dry run with sample payload, skip external APIs (recommended locally):
 ```
 ansible-playbook playbooks/task-master-orchestrator.yml \
-  -e "deploy_dataset={{ lookup('file', 'examples/sample_deploy_dataset.json') | from_json }}" \
+  -e "deploy_dataset={{ lookup('file', '../examples/sample_deploy_dataset.json') | from_json }}" \
   -e network_automation=false \
   --check
 ```
