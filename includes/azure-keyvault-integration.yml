@@ -10,8 +10,8 @@
         msg: "Azure Key Vault integration disabled. Set enable_keyvault=true to activate."
       when: not keyvault_enabled
 
-    - name: Ensure Key Vault configuration and Azure credentials are present
-      when: keyvault_enabled
+    - name: Ensure Key Vault configuration and Azure credentials are present (only when writing)
+      when: keyvault_enabled and (rotate_secrets | default(false)) | bool and (not ansible_check_mode)
       assert:
         that:
           - key_vault_name is defined and key_vault_name | length > 0
@@ -20,12 +20,20 @@
           - (lookup('env', 'AZURE_CLIENT_ID') | length) > 0 or (lookup('env', 'AZURE_AD_USER') | length) > 0 or (lookup('env', 'MSI_ENDPOINT') | length) > 0
         fail_msg: "Missing Key Vault name or Azure credentials (service principal or managed identity)."
 
-    - name: Preview secrets that will be managed
+    - name: Warn if Key Vault name missing (preview only)
+      when: keyvault_enabled and (key_vault_name is not defined or (key_vault_name | length) == 0)
+      debug:
+        msg: "Key Vault name not provided. Preview continues, but no write will occur. Set key_vault_name to enable writes."
+
+    - name: Preview Key Vault target
       when: keyvault_enabled
       debug:
-        msg:
-          - "Key Vault: https://{{ key_vault_name }}.vault.azure.net/"
-          - "Secrets: mycc-{{ company_code }}-db-password, mycc-{{ company_code }}-api-key"
+        msg: "Key Vault: https://{{ key_vault_name | default('') }}.vault.azure.net/"
+
+    - name: Preview secrets that will be managed (when company_code available)
+      when: keyvault_enabled and (company_code is defined)
+      debug:
+        msg: "Secrets: mycc-{{ company_code }}-db-password, mycc-{{ company_code }}-api-key"
 
     - name: Generate ephemeral credentials (not persisted locally)
       when: keyvault_enabled
@@ -36,6 +44,14 @@
 
     - name: Store DB password in Key Vault (optional rotation)
       when: keyvault_enabled and (rotate_secrets | default(false)) | bool
+      assert:
+        that:
+          - company_code is defined and (company_code | length) > 0
+          - key_vault_name is defined and (key_vault_name | length) > 0
+        fail_msg: "company_code and key_vault_name are required to write secrets."
+      register: _kv_assert_db
+    - name: Write DB password secret
+      when: keyvault_enabled and (rotate_secrets | default(false)) | bool
       azure.azcollection.azure_rm_keyvaultsecret:
         name: "mycc-{{ company_code }}-db-password"
         value: "{{ generated_secrets.db_password }}"
@@ -43,6 +59,14 @@
       register: kv_db_secret
 
     - name: Store API key in Key Vault (optional rotation)
+      when: keyvault_enabled and (rotate_secrets | default(false)) | bool
+      assert:
+        that:
+          - company_code is defined and (company_code | length) > 0
+          - key_vault_name is defined and (key_vault_name | length) > 0
+        fail_msg: "company_code and key_vault_name are required to write secrets."
+      register: _kv_assert_api
+    - name: Write API key secret
       when: keyvault_enabled and (rotate_secrets | default(false)) | bool
       azure.azcollection.azure_rm_keyvaultsecret:
         name: "mycc-{{ company_code }}-api-key"
