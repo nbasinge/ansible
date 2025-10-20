@@ -11,37 +11,173 @@
           - vlan_id is defined
         fail_msg: "Missing Sophos API credentials or required vars."
 
-    - name: Create APP host object
+    - name: Check APP host object exists
       uri:
-        url: "{{ sophos_api_url }}/webconsole/APIController?reqxml=<Request><Login><Username>{{ sophos_username }}</Username><Password>{{ sophos_password }}</Password></Login><Set operation='add'><IPHost><Name>MYCC-{{ company_code | upper }}-APP</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>10.12.{{ vlan_id }}.10</IPAddress></IPHost></Set></Request>"
+        url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <IPHost>
+                <Name>MYCC-{{ company_code | upper }}-APP</Name>
+              </IPHost>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: app_host_get
+
+    - name: Create APP host object if missing
+      when: app_host_get.content is not search('MYCC-' + (company_code | upper) + '-APP')</n+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation='add'>
+              <IPHost>
+                <Name>MYCC-{{ company_code | upper }}-APP</Name>
+                <IPFamily>IPv4</IPFamily>
+                <HostType>IP</HostType>
+                <IPAddress>10.12.{{ vlan_id }}.10</IPAddress>
+              </IPHost>
+            </Set>
+          </Request>
         headers:
           Content-Type: "application/xml"
         validate_certs: no
         status_code: [200, 201, 409]
       register: app_host_result
 
-    - name: Create DB host object
+    - name: Check DB host object exists
       uri:
-        url: "{{ sophos_api_url }}/webconsole/APIController?reqxml=<Request><Login><Username>{{ sophos_username }}</Username><Password>{{ sophos_password }}</Password></Login><Set operation='add'><IPHost><Name>MYCC-{{ company_code | upper }}-DB</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>10.12.{{ vlan_id }}.11</IPAddress></IPHost></Set></Request>"
+        url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <IPHost>
+                <Name>MYCC-{{ company_code | upper }}-DB</Name>
+              </IPHost>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: db_host_get
+
+    - name: Create DB host object if missing
+      when: db_host_get.content is not search('MYCC-' + (company_code | upper) + '-DB')
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation='add'>
+              <IPHost>
+                <Name>MYCC-{{ company_code | upper }}-DB</Name>
+                <IPFamily>IPv4</IPFamily>
+                <HostType>IP</HostType>
+                <IPAddress>10.12.{{ vlan_id }}.11</IPAddress>
+              </IPHost>
+            </Set>
+          </Request>
         headers:
           Content-Type: "application/xml"
         validate_certs: no
         status_code: [200, 201, 409]
       register: db_host_result
 
-    - name: Create API host object
+    - name: Check API host object exists
       uri:
-        url: "{{ sophos_api_url }}/webconsole/APIController?reqxml=<Request><Login><Username>{{ sophos_username }}</Username><Password>{{ sophos_password }}</Password></Login><Set operation='add'><IPHost><Name>MYCC-{{ company_code | upper }}-API</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>10.12.{{ vlan_id }}.12</IPAddress></IPHost></Set></Request>"
+        url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <IPHost>
+                <Name>MYCC-{{ company_code | upper }}-API</Name>
+              </IPHost>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: api_host_get
+
+    - name: Create API host object if missing
+      when: api_host_get.content is not search('MYCC-' + (company_code | upper) + '-API')
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation='add'>
+              <IPHost>
+                <Name>MYCC-{{ company_code | upper }}-API</Name>
+                <IPFamily>IPv4</IPFamily>
+                <HostType>IP</HostType>
+                <IPAddress>10.12.{{ vlan_id }}.12</IPAddress>
+              </IPHost>
+            </Set>
+          </Request>
         headers:
           Content-Type: "application/xml"
         validate_certs: no
         status_code: [200, 201, 409]
       register: api_host_result
 
-    - name: Create APP web server object
+    - name: Check APP web server object exists
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <WebServer>
+                <Name>MYCC-{{ company_code | upper }}-APP</Name>
+              </WebServer>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: app_webserver_get
+
+    - name: Create APP web server object if missing
+      when: app_webserver_get.content is not search('MYCC-' + (company_code | upper) + '-APP')
       uri:
         url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
@@ -66,7 +202,30 @@
         status_code: [200, 201, 409]
       register: app_webserver_result
 
-    - name: Create API web server object
+    - name: Check API web server object exists
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <WebServer>
+                <Name>MYCC-{{ company_code | upper }}-API</Name>
+              </WebServer>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: api_webserver_get
+
+    - name: Create API web server object if missing
+      when: api_webserver_get.content is not search('MYCC-' + (company_code | upper) + '-API')
       uri:
         url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
@@ -91,7 +250,30 @@
         status_code: [200, 201, 409]
       register: api_webserver_result
 
-    - name: Clone WAF Rule for APP
+    - name: Check WAF Policy for APP exists
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <WAFPolicy>
+                <Name>WAF-{{ company_code | upper }}-APP</Name>
+              </WAFPolicy>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: waf_app_get
+
+    - name: Create WAF Policy for APP if missing
+      when: waf_app_get.content is not search('WAF-' + (company_code | upper) + '-APP')
       uri:
         url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
@@ -116,7 +298,29 @@
         status_code: [200, 201, 409]
       register: waf_app_result
 
-  - name: Clone WAF Rule for API
+    - name: Check WAF Policy for API exists
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Get>
+              <WAFPolicy>
+                <Name>WAF-{{ company_code | upper }}-API</Name>
+              </WAFPolicy>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200]
+      register: waf_api_get
+
+    - name: Create WAF Policy for API if missing
       uri:
         url: "{{ sophos_api_url }}/webconsole/APIController"
         method: POST
@@ -139,7 +343,7 @@
           Content-Type: "application/xml"
         validate_certs: no
         status_code: [200, 201, 409]
-      register: waf_api_result
+  register: waf_api_result
   vars:
     sophos_api_url: "{{ lookup('env', 'SOPHOS_API_URL') }}"
     sophos_username: "{{ lookup('env', 'SOPHOS_USERNAME') }}"

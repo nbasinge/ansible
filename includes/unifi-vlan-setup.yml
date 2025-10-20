@@ -23,7 +23,22 @@
         status_code: [200, 201]
       register: unifi_login
 
-    - name: Create VLAN network for client
+    - name: Fetch existing networks
+      uri:
+        url: "{{ unifi_controller }}/api/s/{{ unifi_site }}/rest/networkconf"
+        method: GET
+        headers:
+          Cookie: "{{ unifi_login.set_cookie }}"
+        validate_certs: no
+        status_code: [200]
+      register: unifi_networks
+
+    - name: Find existing network match
+      set_fact:
+        unifi_existing_net: "{{ (unifi_networks.json.data | default([])) | selectattr('vlan', 'equalto', vlan_id | int) | list | first | default(omit) }}"
+
+    - name: Create VLAN network for client when absent
+      when: unifi_existing_net is not defined
       uri:
         url: "{{ unifi_controller }}/api/s/{{ unifi_site }}/rest/networkconf"
         method: POST
@@ -39,12 +54,31 @@
           domain_name: "{{ company_code }}.local"
         body_format: json
         validate_certs: no
-        status_code: [200, 201, 409]
-      register: vlan_result
+        status_code: [200, 201]
+      register: vlan_create_result
 
-    - name: Display VLAN creation result
-      debug:
-        msg: "VLAN {{ vlan_id }} created for {{ company_code }}"
+    - name: Patch VLAN network when attributes differ
+      when: unifi_existing_net is defined and (
+              (unifi_existing_net.name | default('')) != ("MYCC-" + (company_code | upper) + "-vlan") or
+              (unifi_existing_net.ip_subnet | default('')) != ("10.12." + (vlan_id | string) + ".0/24") or
+              (unifi_existing_net.domain_name | default('')) != (company_code + ".local") )
+      uri:
+        url: "{{ unifi_controller }}/api/s/{{ unifi_site }}/rest/networkconf/{{ unifi_existing_net._id }}"
+        method: PUT
+        headers:
+          Cookie: "{{ unifi_login.set_cookie }}"
+        body:
+          name: "MYCC-{{ company_code | upper }}-vlan"
+          purpose: "corporate"
+          vlan_enabled: true
+          vlan: "{{ vlan_id }}"
+          dhcpd_enabled: false
+          ip_subnet: "10.12.{{ vlan_id }}.0/24"
+          domain_name: "{{ company_code }}.local"
+        body_format: json
+        validate_certs: no
+        status_code: [200]
+      register: vlan_patch_result
   vars:
     unifi_controller: "{{ lookup('env', 'UNIFI_CONTROLLER_URL') }}"
     unifi_username: "{{ lookup('env', 'UNIFI_USERNAME') }}"

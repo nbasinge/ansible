@@ -1,0 +1,94 @@
+---
+- name: Preflight checks for external services
+  block:
+    - name: Check required environment variables present
+      assert:
+        that:
+          - (lookup('env', 'SYNERGY_API_KEY') | length) > 0
+          - (lookup('env', 'UNIFI_CONTROLLER_URL') | length) > 0
+          - (lookup('env', 'UNIFI_USERNAME') | length) > 0
+          - (lookup('env', 'UNIFI_PASSWORD') | length) > 0
+          - (lookup('env', 'SOPHOS_API_URL') | length) > 0
+          - (lookup('env', 'SOPHOS_USERNAME') | length) > 0
+          - (lookup('env', 'SOPHOS_PASSWORD') | length) > 0
+        fail_msg: "Missing one or more required env vars for Synergy, UniFi, or Sophos."
+
+    - name: Preflight - Synergy API token sanity check
+      uri:
+        url: "https://api.synergywholesale.com/dns/list-records"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'SYNERGY_API_KEY') }}"
+          Content-Type: application/json
+        body:
+          domain: "mycarecrm.com.au"
+        body_format: json
+        status_code: [200, 401, 403]
+        validate_certs: yes
+      register: synergy_preflight
+      failed_when: synergy_preflight.status not in [200, 401, 403]
+
+    - name: Fail if Synergy unauthorized
+      fail:
+        msg: "Synergy API credentials rejected ({{ synergy_preflight.status }}). Check SYNERGY_API_KEY."
+      when: synergy_preflight.status in [401, 403]
+
+    - name: Preflight - UniFi login
+      uri:
+        url: "{{ lookup('env', 'UNIFI_CONTROLLER_URL') }}/api/login"
+        method: POST
+        body:
+          username: "{{ lookup('env', 'UNIFI_USERNAME') }}"
+          password: "{{ lookup('env', 'UNIFI_PASSWORD') }}"
+        body_format: json
+        validate_certs: no
+        status_code: [200]
+      register: unifi_login
+
+    - name: Preflight - UniFi site exists
+      uri:
+        url: "{{ lookup('env', 'UNIFI_CONTROLLER_URL') }}/api/s/{{ lookup('env', 'UNIFI_SITE') | default('default', true) }}/self"
+        method: GET
+        headers:
+          Cookie: "{{ unifi_login.set_cookie }}"
+        validate_certs: no
+        status_code: [200, 404]
+      register: unifi_site_check
+
+    - name: Fail if UniFi site not found
+      fail:
+        msg: "UniFi site '{{ lookup('env', 'UNIFI_SITE') | default('default', true) }}' not found."
+      when: unifi_site_check.status == 404
+
+    - name: Preflight - Sophos API login (benign request)
+      uri:
+        url: "{{ lookup('env', 'SOPHOS_API_URL') }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ lookup('env', 'SOPHOS_USERNAME') }}</Username>
+              <Password>{{ lookup('env', 'SOPHOS_PASSWORD') }}</Password>
+            </Login>
+            <Get>
+              <IPHost>
+                <Name>__nonexistent_preflight__</Name>
+              </IPHost>
+            </Get>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 401, 403]
+      register: sophos_preflight
+      failed_when: sophos_preflight.status not in [200, 401, 403]
+
+    - name: Fail if Sophos unauthorized
+      fail:
+        msg: "Sophos API credentials rejected ({{ sophos_preflight.status }}). Check SOPHOS_USERNAME/PASSWORD and SOPHOS_API_URL."
+      when: sophos_preflight.status in [401, 403]
+
+  rescue:
+    - name: Preflight failed unexpectedly
+      fail:
+        msg: "Preflight failure: {{ ansible_failed_result | default({}) }}"

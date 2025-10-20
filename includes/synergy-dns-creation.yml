@@ -9,7 +9,15 @@
           - company_code is defined
         fail_msg: "Missing required variables (SYNERGY_API_KEY, SOPHOS_PUBLIC_IP, company_code)."
 
-    - name: Create A record for APP domain
+    - name: Lookup existing APP A record
+      community.dns.dns_lookup:
+        query: "{{ company_code }}.{{ domain }}"
+        type: A
+      register: app_dns_current
+      failed_when: false
+
+    - name: Create/ensure APP A record present
+      when: sophos_public_ip not in (app_dns_current.answers | default([]) | map(attribute='address') | list)
       uri:
         url: "https://api.synergywholesale.com/dns/add-record"
         method: POST
@@ -27,7 +35,15 @@
         validate_certs: yes
       register: dns_app_result
 
-    - name: Create A record for API domain
+    - name: Lookup existing API A record
+      community.dns.dns_lookup:
+        query: "api-{{ company_code }}.{{ domain }}"
+        type: A
+      register: api_dns_current
+      failed_when: false
+
+    - name: Create/ensure API A record present
+      when: sophos_public_ip not in (api_dns_current.answers | default([]) | map(attribute='address') | list)
       uri:
         url: "https://api.synergywholesale.com/dns/add-record"
         method: POST
@@ -50,7 +66,7 @@
         timeout: 10
 
     - name: Verify DNS resolution for APP
-      community.general.dns_query:
+      community.dns.dns_lookup:
         query: "{{ company_code }}.{{ domain }}"
         type: A
       register: dns_check_app
@@ -59,7 +75,7 @@
       until: sophos_public_ip in (dns_check_app.answers | map(attribute='address') | list)
 
     - name: Verify DNS resolution for API
-      community.general.dns_query:
+      community.dns.dns_lookup:
         query: "api-{{ company_code }}.{{ domain }}"
         type: A
       register: dns_check_api

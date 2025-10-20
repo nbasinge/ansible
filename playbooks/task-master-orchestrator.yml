@@ -38,6 +38,10 @@
         company_code: "{{ deploy_dataset_obj.company_code }}"
         vlan_id: "{{ deploy_dataset_obj.vlan_id }}"
 
+    - name: Preflight - verify external services reachable
+      include_tasks: ../includes/preflight.yml
+      when: (network_automation | default(true)) | bool
+
     - name: Step 2 - Create DNS Records
       include_tasks: ../includes/synergy-dns-creation.yml
       when: (network_automation | default(true)) | bool
