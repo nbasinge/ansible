@@ -33,6 +33,23 @@ ansible-playbook playbooks/task-master-orchestrator.yml \
 
 Env vars (injected by AWX creds): SYNERGY_API_KEY, SOPHOS_PUBLIC_IP, UNIFI_CONTROLLER_URL, UNIFI_USERNAME, UNIFI_PASSWORD, UNIFI_SITE, SOPHOS_API_URL, SOPHOS_USERNAME, SOPHOS_PASSWORD.
 
+## Dry run / local test
+- Syntax check only:
+```
+ansible-playbook --syntax-check playbooks/task-master-orchestrator.yml
+```
+- Dry run with sample payload, skip external APIs (recommended locally):
+```
+ansible-playbook playbooks/task-master-orchestrator.yml \
+  -e "deploy_dataset={{ lookup('file', 'examples/sample_deploy_dataset.json') | from_json }}" \
+  -e network_automation=false \
+  --check
+```
+Notes:
+- The `network_automation=false` toggle skips DNS/UniFi/Sophos steps.
+- `--check` is optional; with network steps skipped, the play prints plans and validation without changing anything.
+- In AWX, set an extra var `network_automation=false` (or add a survey question) for a safe dry run.
+
 ## Notes
 - APIs may need tweaks to match actual versions.
 - Sophos rule cloning is minimal; extend as needed.
