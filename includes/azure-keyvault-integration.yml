@@ -1,0 +1,61 @@
+---
+- name: Step 0 - Azure Key Vault integration
+  block:
+    - name: Determine if Key Vault integration is enabled
+      set_fact:
+        keyvault_enabled: "{{ (enable_keyvault | default(false)) | bool }}"
+
+    - name: Key Vault integration is disabled
+      debug:
+        msg: "Azure Key Vault integration disabled. Set enable_keyvault=true to activate."
+      when: not keyvault_enabled
+
+    - name: Ensure Key Vault configuration and Azure credentials are present
+      when: keyvault_enabled
+      assert:
+        that:
+          - key_vault_name is defined and key_vault_name | length > 0
+          - (lookup('env', 'AZURE_SUBSCRIPTION_ID') | length) > 0 or (lookup('env', 'AZURE_SUBSCRIPTION') | length) > 0
+          - (lookup('env', 'AZURE_TENANT') | length) > 0 or (lookup('env', 'AZURE_TENANT_ID') | length) > 0
+          - (lookup('env', 'AZURE_CLIENT_ID') | length) > 0 or (lookup('env', 'AZURE_AD_USER') | length) > 0 or (lookup('env', 'MSI_ENDPOINT') | length) > 0
+        fail_msg: "Missing Key Vault name or Azure credentials (service principal or managed identity)."
+
+    - name: Preview secrets that will be managed
+      when: keyvault_enabled
+      debug:
+        msg:
+          - "Key Vault: https://{{ key_vault_name }}.vault.azure.net/"
+          - "Secrets: mycc-{{ company_code }}-db-password, mycc-{{ company_code }}-api-key"
+
+    - name: Generate ephemeral credentials (not persisted locally)
+      when: keyvault_enabled
+      set_fact:
+        generated_secrets:
+          db_password: "{{ lookup('community.general.random_string', 'length=24', 'special=false') }}"
+          api_key: "{{ lookup('community.general.random_string', 'length=32', 'special=false') }}"
+
+    - name: Store DB password in Key Vault (optional rotation)
+      when: keyvault_enabled and (rotate_secrets | default(false)) | bool
+      azure.azcollection.azure_rm_keyvaultsecret:
+        name: "mycc-{{ company_code }}-db-password"
+        value: "{{ generated_secrets.db_password }}"
+        keyvault_uri: "https://{{ key_vault_name }}.vault.azure.net/"
+      register: kv_db_secret
+
+    - name: Store API key in Key Vault (optional rotation)
+      when: keyvault_enabled and (rotate_secrets | default(false)) | bool
+      azure.azcollection.azure_rm_keyvaultsecret:
+        name: "mycc-{{ company_code }}-api-key"
+        value: "{{ generated_secrets.api_key }}"
+        keyvault_uri: "https://{{ key_vault_name }}.vault.azure.net/"
+      register: kv_api_secret
+
+    - name: Note on Key Vault rotation
+      when: keyvault_enabled and not (rotate_secrets | default(false)) | bool
+      debug:
+        msg: "Rotation disabled. Set rotate_secrets=true to write new secrets to Key Vault."
+
+  rescue:
+    - name: Fail with clear Key Vault error
+      fail:
+        msg: "Azure Key Vault step failed: {{ ansible_failed_result | default({}) }}"

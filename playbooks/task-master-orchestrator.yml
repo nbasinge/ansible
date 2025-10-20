@@ -8,9 +8,8 @@
   vars_prompt: []
 
   tasks:
-    - name: Step 0 - Generate and Store Credentials (placeholder)
-      debug:
-        msg: "Azure Key Vault integration not yet implemented"
+    - name: Step 0 - Generate and Store Credentials (Azure Key Vault)
+      include_tasks: ../includes/azure-keyvault-integration.yml
 
     - name: Step 1 - Receive payload from portal (webhook placeholder)
       debug:
