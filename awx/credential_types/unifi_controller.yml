@@ -1,0 +1,26 @@
+---
+kind: CredentialType
+type: net.mycarecrm.unifi_controller
+name: UniFi Controller
+inputs:
+  fields:
+    - id: unifi_controller_url
+      type: string
+      label: UniFi Controller URL
+    - id: unifi_username
+      type: string
+      label: UniFi Username
+    - id: unifi_password
+      type: string
+      label: UniFi Password
+      secret: true
+    - id: unifi_site
+      type: string
+      label: UniFi Site Name
+      default: default
+injectors:
+  env:
+    UNIFI_CONTROLLER_URL: "{{ unifi_controller_url }}"
+    UNIFI_USERNAME: "{{ unifi_username }}"
+    UNIFI_PASSWORD: "{{ unifi_password }}"
+    UNIFI_SITE: "{{ unifi_site | default('default') }}"

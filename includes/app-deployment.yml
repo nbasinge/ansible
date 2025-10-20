@@ -1,0 +1,9 @@
+---
+- name: Step 9 - Deploy Application
+  block:
+    - name: Display App deployment plan
+      debug:
+        msg: >-
+          Placeholder: deploy application front-end/service, configure web root, SSL,
+          and application settings for {{ deploy_dataset_obj.company_code }}.
+  tags: [app]

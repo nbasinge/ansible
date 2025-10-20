@@ -1,0 +1,23 @@
+---
+- name: Step 10 - Post-Deployment Validation
+  block:
+    - name: Validate DNS resolves to Sophos public IP (APP)
+      when: (network_automation | default(true)) | bool
+      community.dns.dns_lookup:
+        name: "{{ deploy_dataset_obj.domain_name }}"
+        type: A
+      register: dns_app
+
+    - name: Validate DNS resolves to Sophos public IP (API)
+      when: (network_automation | default(true)) | bool
+      community.dns.dns_lookup:
+        name: "{{ deploy_dataset_obj.api_domain_name }}"
+        type: A
+      register: dns_api
+
+    - name: Show validation summary
+      debug:
+        msg:
+          app_dns: "{{ dns_app.answers | default([]) }}"
+          api_dns: "{{ dns_api.answers | default([]) }}"
+  tags: [validate]

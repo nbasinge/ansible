@@ -1,0 +1,52 @@
+---
+- name: Step 3 - Assign UniFi VLAN
+  block:
+    - name: Ensure required vars are present
+      assert:
+        that:
+          - unifi_controller | length > 0
+          - unifi_username | length > 0
+          - unifi_password | length > 0
+          - vlan_id is defined
+          - company_code is defined
+        fail_msg: "Missing UniFi credentials or required vars."
+
+    - name: Login to UniFi Controller
+      uri:
+        url: "{{ unifi_controller }}/api/login"
+        method: POST
+        body:
+          username: "{{ unifi_username }}"
+          password: "{{ unifi_password }}"
+        body_format: json
+        validate_certs: no
+        status_code: [200, 201]
+      register: unifi_login
+
+    - name: Create VLAN network for client
+      uri:
+        url: "{{ unifi_controller }}/api/s/{{ unifi_site }}/rest/networkconf"
+        method: POST
+        headers:
+          Cookie: "{{ unifi_login.set_cookie }}"
+        body:
+          name: "MYCC-{{ company_code | upper }}-vlan"
+          purpose: "corporate"
+          vlan_enabled: true
+          vlan: "{{ vlan_id }}"
+          dhcpd_enabled: false
+          ip_subnet: "10.12.{{ vlan_id }}.0/24"
+          domain_name: "{{ company_code }}.local"
+        body_format: json
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: vlan_result
+
+    - name: Display VLAN creation result
+      debug:
+        msg: "VLAN {{ vlan_id }} created for {{ company_code }}"
+  vars:
+    unifi_controller: "{{ lookup('env', 'UNIFI_CONTROLLER_URL') }}"
+    unifi_username: "{{ lookup('env', 'UNIFI_USERNAME') }}"
+    unifi_password: "{{ lookup('env', 'UNIFI_PASSWORD') }}"
+    unifi_site: "{{ lookup('env', 'UNIFI_SITE') | default('default', true) }}"

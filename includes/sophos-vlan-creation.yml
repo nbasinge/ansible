@@ -1,0 +1,67 @@
+---
+- name: Step 5 - Create Sophos VLAN Interface
+  block:
+    - name: Ensure required vars are present
+      assert:
+        that:
+          - sophos_api_url | length > 0
+          - sophos_username | length > 0
+          - sophos_password | length > 0
+          - vlan_id is defined
+          - company_code is defined
+        fail_msg: "Missing Sophos API credentials or required vars."
+
+    - name: Create VLAN interface on Sophos
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation="add">
+              <Interface>
+                <Name>MYCC-{{ company_code | upper }}-vlan</Name>
+                <InterfaceType>VLAN</InterfaceType>
+                <ParentInterface>Production - Port6</ParentInterface>
+                <VLANID>{{ vlan_id }}</VLANID>
+                <IPv4Configuration>Static</IPv4Configuration>
+                <IPv4Address>10.12.{{ vlan_id }}.1</IPv4Address>
+                <Netmask>255.255.255.0</Netmask>
+                <Zone>LAN</Zone>
+              </Interface>
+            </Set>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: vlan_interface_result
+
+  - name: Enable VLAN interface
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation="update">
+              <Interface>
+                <Name>MYCC-{{ company_code | upper }}-vlan</Name>
+                <Status>Enable</Status>
+              </Interface>
+            </Set>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201]
+  vars:
+    sophos_api_url: "{{ lookup('env', 'SOPHOS_API_URL') }}"
+    sophos_username: "{{ lookup('env', 'SOPHOS_USERNAME') }}"
+    sophos_password: "{{ lookup('env', 'SOPHOS_PASSWORD') }}"

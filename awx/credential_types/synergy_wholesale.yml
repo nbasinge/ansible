@@ -1,0 +1,17 @@
+---
+kind: CredentialType
+type: net.mycarecrm.synergy_wholesale
+name: Synergy Wholesale API
+inputs:
+  fields:
+    - id: synergy_api_key
+      type: string
+      label: Synergy Wholesale API Key
+      secret: true
+    - id: sophos_public_ip
+      type: string
+      label: Sophos Public IP Address
+injectors:
+  env:
+    SYNERGY_API_KEY: "{{ synergy_api_key }}"
+    SOPHOS_PUBLIC_IP: "{{ sophos_public_ip }}"

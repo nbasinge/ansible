@@ -1,0 +1,72 @@
+---
+- name: Step 2A - Create DNS Records in Synergy Wholesale
+  block:
+    - name: Ensure required vars are present
+      assert:
+        that:
+          - synergy_api_key | length > 0
+          - sophos_public_ip | length > 0
+          - company_code is defined
+        fail_msg: "Missing required variables (SYNERGY_API_KEY, SOPHOS_PUBLIC_IP, company_code)."
+
+    - name: Create A record for APP domain
+      uri:
+        url: "https://api.synergywholesale.com/dns/add-record"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ synergy_api_key }}"
+          Content-Type: application/json
+        body:
+          domain: "{{ domain }}"
+          name: "{{ company_code }}"
+          type: "A"
+          content: "{{ sophos_public_ip }}"
+          ttl: 3600
+        body_format: json
+        status_code: [200, 201, 409]
+        validate_certs: yes
+      register: dns_app_result
+
+    - name: Create A record for API domain
+      uri:
+        url: "https://api.synergywholesale.com/dns/add-record"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ synergy_api_key }}"
+          Content-Type: application/json
+        body:
+          domain: "{{ domain }}"
+          name: "api-{{ company_code }}"
+          type: "A"
+          content: "{{ sophos_public_ip }}"
+          ttl: 3600
+        body_format: json
+        status_code: [200, 201, 409]
+        validate_certs: yes
+      register: dns_api_result
+
+    - name: Wait briefly for DNS availability
+      wait_for:
+        timeout: 10
+
+    - name: Verify DNS resolution for APP
+      community.general.dns_query:
+        query: "{{ company_code }}.{{ domain }}"
+        type: A
+      register: dns_check_app
+      retries: 5
+      delay: 5
+      until: sophos_public_ip in (dns_check_app.answers | map(attribute='address') | list)
+
+    - name: Verify DNS resolution for API
+      community.general.dns_query:
+        query: "api-{{ company_code }}.{{ domain }}"
+        type: A
+      register: dns_check_api
+      retries: 5
+      delay: 5
+      until: sophos_public_ip in (dns_check_api.answers | map(attribute='address') | list)
+  vars:
+    synergy_api_key: "{{ lookup('env', 'SYNERGY_API_KEY') }}"
+    sophos_public_ip: "{{ lookup('env', 'SOPHOS_PUBLIC_IP') }}"
+    domain: "mycarecrm.com.au"

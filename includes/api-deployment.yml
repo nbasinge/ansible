@@ -1,0 +1,9 @@
+---
+- name: Step 8 - Deploy API
+  block:
+    - name: Display API deployment plan
+      debug:
+        msg: >-
+          Placeholder: deploy API service (container or service install), configure
+          environment and connection strings for {{ deploy_dataset_obj.company_code }}.
+  tags: [api]

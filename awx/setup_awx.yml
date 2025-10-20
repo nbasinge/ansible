@@ -1,0 +1,101 @@
+---
+- name: Configure AWX for MyCareCRM Deployment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - awx.awx
+
+  module_defaults:
+    awx.awx.*:
+      controller_host: "{{ awx_host }}"
+      controller_username: "{{ awx_username }}"
+      controller_password: "{{ awx_password }}"
+      validate_certs: "{{ awx_verify_ssl }}"
+
+  vars:
+    awx_host: "{{ lookup('env', 'AWX_HOST') }}"
+    awx_username: "{{ lookup('env', 'AWX_USERNAME') }}"
+    awx_password: "{{ lookup('env', 'AWX_PASSWORD') }}"
+    awx_verify_ssl: false
+    awx_organization: "Default"
+    project_name: "MyCareCRM Automation"
+    inventory_name: "Localhost"
+    job_template_name: "MyCareCRM Full Stack Deployment"
+
+  tasks:
+    - name: Validate AWX connection vars
+      assert:
+        that:
+          - awx_host | length > 0
+          - awx_username | length > 0
+          - awx_password | length > 0
+
+    - name: Set AWX credentials (noop placeholder)
+      debug:
+        msg: "AWX connection configured via module_defaults"
+
+    - name: Ensure project exists
+      awx.awx.project:
+        name: "{{ project_name }}"
+        organization: "{{ awx_organization }}"
+        scm_type: "manual"
+
+    - name: Ensure inventory exists
+      awx.awx.inventory:
+        name: "{{ inventory_name }}"
+        organization: "{{ awx_organization }}"
+
+    - name: Ensure localhost host exists
+      awx.awx.host:
+        name: localhost
+        inventory: "{{ inventory_name }}"
+        variables: "ansible_connection: local"
+
+    - name: Load credential type defs
+      set_fact:
+        synergy_type_def: "{{ lookup('file', playbook_dir + '/../awx/credential_types/synergy_wholesale.yml') | from_yaml }}"
+        unifi_type_def: "{{ lookup('file', playbook_dir + '/../awx/credential_types/unifi_controller.yml') | from_yaml }}"
+        sophos_type_def: "{{ lookup('file', playbook_dir + '/../awx/credential_types/sophos_xg_firewall.yml') | from_yaml }}"
+
+    - name: Create custom credential type - Synergy Wholesale
+      awx.awx.credential_type:
+        name: "{{ synergy_type_def.name }}"
+        kind: "cloud"
+        inputs: "{{ synergy_type_def.inputs }}"
+        injectors: "{{ synergy_type_def.injectors }}"
+
+    - name: Create custom credential type - UniFi Controller
+      awx.awx.credential_type:
+        name: "{{ unifi_type_def.name }}"
+        kind: "cloud"
+        inputs: "{{ unifi_type_def.inputs }}"
+        injectors: "{{ unifi_type_def.injectors }}"
+
+    - name: Create custom credential type - Sophos XG Firewall
+      awx.awx.credential_type:
+        name: "{{ sophos_type_def.name }}"
+        kind: "cloud"
+        inputs: "{{ sophos_type_def.inputs }}"
+        injectors: "{{ sophos_type_def.injectors }}"
+
+    - name: Create job template
+      awx.awx.job_template:
+        name: "{{ job_template_name }}"
+        organization: "{{ awx_organization }}"
+        project: "{{ project_name }}"
+        inventory: "{{ inventory_name }}"
+        playbook: "playbooks/task-master-orchestrator.yml"
+        ask_variables_on_launch: true
+        survey_enabled: true
+        survey_spec:
+          name: "Deployment Payload"
+          description: "Provide deploy_dataset JSON"
+          spec:
+            - type: textarea
+              question_name: deploy_dataset
+              question_description: "Paste the JSON payload"
+              variable: deploy_dataset
+              required: true
+              default: "{{ lookup('file', playbook_dir + '/../examples/sample_deploy_dataset.json') }}"

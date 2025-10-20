@@ -1,0 +1,10 @@
+---
+- name: Step 7 - Deploy Database
+  block:
+    - name: Display DB deployment plan
+      debug:
+        msg: >-
+          Placeholder: run DB schema migrations, seed data, and configure connections
+          for {{ deploy_dataset_obj.company_code }}. Implement once DB artifact and
+          target host details are defined.
+  tags: [db]

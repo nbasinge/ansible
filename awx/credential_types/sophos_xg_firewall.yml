@@ -1,0 +1,21 @@
+---
+kind: CredentialType
+type: net.mycarecrm.sophos_xg
+name: Sophos XG Firewall
+inputs:
+  fields:
+    - id: sophos_api_url
+      type: string
+      label: Sophos API URL
+    - id: sophos_username
+      type: string
+      label: Sophos Username
+    - id: sophos_password
+      type: string
+      label: Sophos Password
+      secret: true
+injectors:
+  env:
+    SOPHOS_API_URL: "{{ sophos_api_url }}"
+    SOPHOS_USERNAME: "{{ sophos_username }}"
+    SOPHOS_PASSWORD: "{{ sophos_password }}"

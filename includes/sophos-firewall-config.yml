@@ -1,0 +1,146 @@
+---
+- name: Step 4 - Configure Sophos Firewall
+  block:
+    - name: Ensure required vars are present
+      assert:
+        that:
+          - sophos_api_url | length > 0
+          - sophos_username | length > 0
+          - sophos_password | length > 0
+          - company_code is defined
+          - vlan_id is defined
+        fail_msg: "Missing Sophos API credentials or required vars."
+
+    - name: Create APP host object
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController?reqxml=<Request><Login><Username>{{ sophos_username }}</Username><Password>{{ sophos_password }}</Password></Login><Set operation='add'><IPHost><Name>MYCC-{{ company_code | upper }}-APP</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>10.12.{{ vlan_id }}.10</IPAddress></IPHost></Set></Request>"
+        method: POST
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: app_host_result
+
+    - name: Create DB host object
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController?reqxml=<Request><Login><Username>{{ sophos_username }}</Username><Password>{{ sophos_password }}</Password></Login><Set operation='add'><IPHost><Name>MYCC-{{ company_code | upper }}-DB</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>10.12.{{ vlan_id }}.11</IPAddress></IPHost></Set></Request>"
+        method: POST
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: db_host_result
+
+    - name: Create API host object
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController?reqxml=<Request><Login><Username>{{ sophos_username }}</Username><Password>{{ sophos_password }}</Password></Login><Set operation='add'><IPHost><Name>MYCC-{{ company_code | upper }}-API</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>10.12.{{ vlan_id }}.12</IPAddress></IPHost></Set></Request>"
+        method: POST
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: api_host_result
+
+    - name: Create APP web server object
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation="add">
+              <WebServer>
+                <Name>MYCC-{{ company_code | upper }}-APP</Name>
+                <Host>MYCC-{{ company_code | upper }}-APP</Host>
+                <Port>80</Port>
+                <Protocol>HTTP</Protocol>
+              </WebServer>
+            </Set>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: app_webserver_result
+
+    - name: Create API web server object
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation="add">
+              <WebServer>
+                <Name>MYCC-{{ company_code | upper }}-API</Name>
+                <Host>MYCC-{{ company_code | upper }}-API</Host>
+                <Port>8000</Port>
+                <Protocol>HTTP</Protocol>
+              </WebServer>
+            </Set>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: api_webserver_result
+
+    - name: Clone WAF Rule for APP
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation="add">
+              <WAFPolicy>
+                <Name>WAF-{{ company_code | upper }}-APP</Name>
+                <Domain>{{ company_code }}.mycarecrm.com.au</Domain>
+                <WebServer>MYCC-{{ company_code | upper }}-APP</WebServer>
+                <Status>Enable</Status>
+              </WAFPolicy>
+            </Set>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: waf_app_result
+
+  - name: Clone WAF Rule for API
+      uri:
+        url: "{{ sophos_api_url }}/webconsole/APIController"
+        method: POST
+        body: |
+          <Request>
+            <Login>
+              <Username>{{ sophos_username }}</Username>
+              <Password>{{ sophos_password }}</Password>
+            </Login>
+            <Set operation="add">
+              <WAFPolicy>
+                <Name>WAF-{{ company_code | upper }}-API</Name>
+                <Domain>api-{{ company_code }}.mycarecrm.com.au</Domain>
+                <WebServer>MYCC-{{ company_code | upper }}-API</WebServer>
+                <Status>Enable</Status>
+              </WAFPolicy>
+            </Set>
+          </Request>
+        headers:
+          Content-Type: "application/xml"
+        validate_certs: no
+        status_code: [200, 201, 409]
+      register: waf_api_result
+  vars:
+    sophos_api_url: "{{ lookup('env', 'SOPHOS_API_URL') }}"
+    sophos_username: "{{ lookup('env', 'SOPHOS_USERNAME') }}"
+    sophos_password: "{{ lookup('env', 'SOPHOS_PASSWORD') }}"

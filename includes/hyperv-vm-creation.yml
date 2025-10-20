@@ -1,0 +1,49 @@
+---
+- name: Step 6 - Deploy VMs on Hyper-V
+  block:
+    - name: Ensure required VM vars are present
+      assert:
+        that:
+          - deploy_dataset_obj is defined
+          - deploy_dataset_obj.vm_app_name is defined
+          - deploy_dataset_obj.vm_db_name is defined
+          - deploy_dataset_obj.vm_api_name is defined
+          - deploy_dataset_obj.vm_app_ip is defined
+          - deploy_dataset_obj.vm_db_ip is defined
+          - deploy_dataset_obj.vm_api_ip is defined
+        fail_msg: "Missing VM details in deploy_dataset payload."
+
+    - name: Build VM plan from payload
+      set_fact:
+        mycc_vms:
+          - role: app
+            name: "{{ deploy_dataset_obj.vm_app_name }}"
+            ip: "{{ deploy_dataset_obj.vm_app_ip }}"
+            cpu: "{{ deploy_dataset_obj.vm_app_cpu }}"
+            memory_mb: "{{ deploy_dataset_obj.vm_app_memory }}"
+            disk_gb: "{{ deploy_dataset_obj.vm_app_disk }}"
+          - role: db
+            name: "{{ deploy_dataset_obj.vm_db_name }}"
+            ip: "{{ deploy_dataset_obj.vm_db_ip }}"
+            cpu: "{{ deploy_dataset_obj.vm_db_cpu }}"
+            memory_mb: "{{ deploy_dataset_obj.vm_db_memory }}"
+            disk_gb: "{{ deploy_dataset_obj.vm_db_disk }}"
+          - role: api
+            name: "{{ deploy_dataset_obj.vm_api_name }}"
+            ip: "{{ deploy_dataset_obj.vm_api_ip }}"
+            cpu: "{{ deploy_dataset_obj.vm_api_cpu }}"
+            memory_mb: "{{ deploy_dataset_obj.vm_api_memory }}"
+            disk_gb: "{{ deploy_dataset_obj.vm_api_disk }}"
+
+    - name: Preview Hyper-V creation plan
+      debug:
+        var: mycc_vms
+
+    - name: Note
+      debug:
+        msg: >-
+          Implement Hyper-V creation via WinRM using PowerShell cmdlets (New-VM, Set-VM,
+          Add-VMHardDiskDrive, Set-VMProcessor, Set-VMMemory). Provide a Windows credential
+          in AWX and delegate tasks to the Hyper-V host. This task file is safety-guarded
+          and currently prepares the plan without executing changes.
+  tags: [hyperv]

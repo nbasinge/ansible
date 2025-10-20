@@ -1,0 +1,71 @@
+---
+- name: Task 15 - Full Stack Deployment with Network Automation
+  hosts: localhost
+  gather_facts: no
+
+  vars_files: []
+
+  vars_prompt: []
+
+  tasks:
+    - name: Step 0 - Generate and Store Credentials (placeholder)
+      debug:
+        msg: "Azure Key Vault integration not yet implemented"
+
+    - name: Step 1 - Receive payload from portal (webhook placeholder)
+      debug:
+        msg: "Payload should be provided as extra_vars or via AWX webhook"
+
+    - name: Parse deploy_dataset if provided as JSON string
+      set_fact:
+        deploy_dataset_obj: "{{ deploy_dataset if deploy_dataset is mapping else (deploy_dataset | from_json) }}"
+      when: deploy_dataset is defined
+
+    - name: Validate deploy payload against schema
+      ansible.utils.validate:
+        data: "{{ deploy_dataset_obj | default({}) }}"
+        criteria: "{{ lookup('file', playbook_dir + '/../schemas/deploy_dataset.schema.json') }}"
+        engine: ansible.utils.jsonschema
+      register: schema_validation
+
+    - name: Fail if schema invalid
+      when: not schema_validation.valid | default(true)
+      fail:
+        msg: "Invalid deploy_dataset payload: {{ schema_validation.errors | default('unknown error') }}"
+
+    - name: Set convenience vars from payload
+      set_fact:
+        company_code: "{{ deploy_dataset_obj.company_code }}"
+        vlan_id: "{{ deploy_dataset_obj.vlan_id }}"
+
+    - name: Step 2 - Create DNS Records
+      include_tasks: ../includes/synergy-dns-creation.yml
+      when: (network_automation | default(true)) | bool
+
+    - name: Step 3 - Configure UniFi VLAN
+      include_tasks: ../includes/unifi-vlan-setup.yml
+      when: (network_automation | default(true)) | bool
+
+    - name: Step 4 - Configure Sophos Hosts and WAF
+      include_tasks: ../includes/sophos-firewall-config.yml
+      when: (network_automation | default(true)) | bool
+
+    - name: Step 5 - Create Sophos VLAN Interface
+      include_tasks: ../includes/sophos-vlan-creation.yml
+      when: (network_automation | default(true)) | bool
+
+    - name: Step 6 - Deploy VMs on Hyper-V
+      include_tasks: ../includes/hyperv-vm-creation.yml
+
+    - name: Step 7 - Deploy Database
+      include_tasks: ../includes/database-deployment.yml
+
+    - name: Step 8 - Deploy API
+      include_tasks: ../includes/api-deployment.yml
+
+    - name: Step 9 - Deploy Application
+      include_tasks: ../includes/app-deployment.yml
+
+    - name: Step 10 - Post-Deployment Validation
+      include_tasks: ../includes/deployment-validation.yml
+      when: (network_automation | default(true)) | bool
